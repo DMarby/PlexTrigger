@@ -1,0 +1,16 @@
+{
+  "name": "PlexTrigger",
+  "version": "0.0.1",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "test": "echo 'No tests defined' && exit 0",
+    "start": "node index.js"
+  },
+  "author": "David Marby <david@dmarby.se> http://dmarby.se",
+  "dependencies": {
+    "async": "^0.9.0",
+    "node-hue-api": "^1.0.5",
+    "plex-api": "^2.0.1"
+  }
+}
