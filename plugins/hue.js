@@ -64,6 +64,7 @@ var stop = function (callback) {
     return callback()
   }
 
+  // TODO use lights filter here to only affect non-modified lights!
   api.activateScene(scenes.on, function (error, result) {
     if (error) {
       console.log('Error turning on!', error)

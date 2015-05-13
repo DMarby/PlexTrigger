@@ -58,6 +58,7 @@ var trigger_state = function (type) {
 }
 
 var last_offset = 0
+var offset_count = 0
 var stopped_due_to_offset = false
 
 // TODO Make sure that we don't toggle a turnOn before turnOff is done and vice versa? Just ignore and let it happen afterwards?
@@ -97,20 +98,21 @@ var query = function () {
       }*/
 
       if (client.viewOffset === last_offset && (state === 'play' || state === 'pause') && (state_to_trigger === 'play' || state_to_trigger === 'pause')) {
-        if (stopped_due_to_offset) {
-          return
-        }
-        
         console.log('Same viewoffset!')
-        
+
         // TODO might need to account for pause not to start playing again when we have disconnected or something?
         if (state_to_trigger !== 'pause') {
-          state_to_trigger = 'stop'
-          stopped_due_to_offset = true
+          offset_count++
+          
+          if (offset_count > 2) {
+            state_to_trigger = 'stop'
+          }
+        } else {
+          offset_count = 0
         }
       } else {
         last_offset = client.viewOffset
-        stopped_due_to_offset = false
+        offset_count = 0
       }
 
       trigger_state(state_to_trigger)
