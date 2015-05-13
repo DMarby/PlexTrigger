@@ -106,13 +106,19 @@ var query = function () {
           
           if (offset_count > 2) {
             state_to_trigger = 'stop'
+            stopped_due_to_offset = true
           }
         } else {
           offset_count = 0
         }
       } else {
         last_offset = client.viewOffset
+        stopped_due_to_offset = false
         offset_count = 0
+      }
+
+      if (stopped_due_to_offset && state_to_trigger === 'play') {
+        return
       }
 
       trigger_state(state_to_trigger)
