@@ -100,6 +100,8 @@ var query = function () {
         state_to_trigger = 'stop'
       }*/
 
+      var offsetMatch = false
+
       if (client.viewOffset === last_offset && (state === 'play' || state === 'pause') && (state_to_trigger === 'play' || state_to_trigger === 'pause')) {
         console.log('Same viewoffset!')
 
@@ -115,19 +117,21 @@ var query = function () {
           stopped_due_to_offset = false
           offset_count = 0
         }
-      } else {
-        last_offset = client.viewOffset
-        offset_count = 0
+
+        offsetMatch = true
       }
 
       if (stopped_due_to_offset && state_to_trigger === 'play') {
         if (client.viewOffset === last_offset) {
-          console.log('viewOffset === last_offset')
           return
         } else {
-          console.log('stopped_due_to_offset = false')
           stopped_due_to_offset = false
         }
+      }
+
+      if (!offsetMatch) {
+        last_offset = client.viewOffset
+        offset_count = 0
       }
 
       trigger_state(state_to_trigger)

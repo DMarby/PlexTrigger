@@ -11,6 +11,6 @@
   "dependencies": {
     "async": "^0.9.0",
     "node-hue-api": "^1.0.5",
-    "plex-api": "git://github.com/DMarby/node-plex-api.git#master"
+    "plex-api": "^2.1.0"
   }
 }
