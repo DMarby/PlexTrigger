@@ -1,6 +1,7 @@
 var plex = require('plex-api')
 var async = require('async')
 var config = require('./config')
+var fs = require('fs')
 
 var client = new plex(config.plex.client)
 
@@ -68,12 +69,14 @@ var query = function () {
     // TODO paused or something as well?
     if (!result._children.length && state !== 'stop') {
       console.log('No sessions!')
+      stopped_due_to_offset = false
       return trigger_state('stop')
     }
 
     result._children.forEach(function (client) {
       if (!client._children.length && state !== 'stop') {
         console.log('No players!')
+        stopped_due_to_offset = false
         return trigger_state('stop')
       }
 
@@ -105,20 +108,26 @@ var query = function () {
           offset_count++
           
           if (offset_count > 2) {
-            state_to_trigger = 'stop'
             stopped_due_to_offset = true
+            state_to_trigger = 'stop'
           }
         } else {
+          stopped_due_to_offset = false
           offset_count = 0
         }
       } else {
         last_offset = client.viewOffset
-        stopped_due_to_offset = false
         offset_count = 0
       }
 
       if (stopped_due_to_offset && state_to_trigger === 'play') {
-        return
+        if (client.viewOffset === last_offset) {
+          console.log('viewOffset === last_offset')
+          return
+        } else {
+          console.log('stopped_due_to_offset = false')
+          stopped_due_to_offset = false
+        }
       }
 
       trigger_state(state_to_trigger)

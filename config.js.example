@@ -1,9 +1,17 @@
+var pjson = require('./package.json')
+
 module.exports = {
   plex: {
     client: {
       hostname: 'localhost',
       username: '',
-      password: ''
+      password: '',
+      options: {
+        product: 'PlexTrigger',
+        version: pjson.version,
+        device: 'PlexTrigger',
+        identifier: 'random_uuid'
+      }
     },
 
     machine_identifiers: ['PLEX_MACHINE_IDENTIFIER']
@@ -11,6 +19,7 @@ module.exports = {
 
   plugins: {
     hue: {
+      transition_time: 5000, // Time in milliseconds for when dimming lights
       lights: [
         '4', // Hallway
         '5',

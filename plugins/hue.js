@@ -6,6 +6,8 @@ var config
 
 var scenes = {}
 
+var states = {}
+
 // TODO remove debug logging
 var starts_with = function (str, prefix) {
   return str.indexOf(prefix) === 0
@@ -35,23 +37,78 @@ var create_user = function (username, ip, api, callback) {
   try_to_create_user()
 }
 
+var group_id
+
+var setup_groups = function (callback) {
+  api.getGroups(function (error, result) {
+    result.forEach(function(group) {
+      if (group.name === 'PlexTrigger-group') {
+        group_id = group.id
+      }
+    })
+
+    if (!group_id) {
+      api.createGroup('PlexTrigger-group', config.lights, function (error, result) {
+        if (error) {
+          console.log('Error creating group!', group)
+          return callback()
+        }
+
+        group_id = result.id
+        callback()
+      })
+    } else {
+      callback()
+    }
+  })
+}
+
 // TODO https://github.com/bstascavage/plexHue/blob/master/bin/hue.rb#L80 Just use brightness etc like here?
 // TODO http://www.developers.meethue.com/things-you-need-know
 // TODO find and use existing scene rather than always creating new?
 var setup_scenes = function (callback) {
-  api.getScenes(function (error, result) {
+  api.createScene(config.lights, 'PlexTrigger-Off', function (error, scene) {
+    scenes.off = scene.id
+
+    async.eachSeries(scene.lights, function (light, next) {
+      api.setSceneLightState(scene.id, light, hue_api.lightState.create().transition(config.transition_time).off(), function (error, result) {
+        if (error) {
+          console.log('Error setting scene state', error)
+        }
+
+        setTimeout(next, 100)
+      })
+    }, function (error) {
+      callback()
+    })
+  })
+}
+
+var play = function (callback) {
+  states = {}
+
+  api.getFullState(function (error, light_config) {
+    if (error) {
+      console.error('Error getting full state!', error)
+      return callback()
+    }
+
+    Object.keys(light_config.lights).forEach(function (light) {
+      light = light + ''
+      if (config.lights.indexOf(light) > -1) {
+        states[light] = JSON.parse(JSON.stringify(light_config.lights[light].state))
+      }
+    })
+
+    // TODO grab states and modify for slow fadein
     api.createScene(config.lights, 'PlexTrigger-On', function (error, scene) {
-      scenes.off = scene.id
+      scenes.on = scene.id
 
-      async.eachSeries(scene.lights, function (light, next) {
-        api.setSceneLightState(scene.id, light, hue_api.lightState.create().transition(30000).off(), function (error, result) {
-          if (error) {
-            console.log('Error setting scene state', error)
-          }
+      api.activateScene(scenes.off, function (error, result) {
+        if (error) {
+          console.log('Error turning off!', error)
+        }
 
-          setTimeout(next, 100)
-        })
-      }, function (error) {
         callback()
       })
     })
@@ -59,18 +116,65 @@ var setup_scenes = function (callback) {
 }
 
 // TODO Properly make sure to not trigger this if we haven't triggered play first to get a scenes.on!
+// TODO Clean up groups, or just use one?
 var stop = function (callback) {
   if (!scenes.on) {
+    console.log('No on scene!')
     return callback()
   }
 
-  // TODO use lights filter here to only affect non-modified lights!
-  api.activateScene(scenes.on, function (error, result) {
+  api.getFullState(function (error, light_config) {
     if (error) {
-      console.log('Error turning on!', error)
+      console.error('Error getting full state!', error)
+      return callback()
     }
 
-    callback()
+    var lights_to_turn_on = []
+
+    Object.keys(light_config.lights).forEach(function (light) {
+      light = light + ''
+      // TODO remove this
+      if (config.lights.indexOf(light) > -1) {
+        if (light_config.lights[light].state.on) {
+          console.log('Light id on', light)
+          //console.log('Light config ', light_config.lights[light])
+        }
+
+        if (states[light] && !states[light].on) {
+          console.log('State not on for light!', light)
+          console.log('Name', light_config.lights[light].name)
+          console.log('State', states[light])
+        }
+      }
+      // TODO make sure this works correctly
+      // TODO Check if color has changed etc?
+      if (config.lights.indexOf(light) > -1 && !light_config.lights[light].state.on && states[light] && states[light].on) {
+        lights_to_turn_on.push(light)
+      }
+    })
+
+    console.log(lights_to_turn_on)
+    console.log(lights_to_turn_on.length)
+
+    // TODO create and then re-use
+    api.updateGroup(group_id, lights_to_turn_on, function (error, result) {
+      if (error) {
+        console.log('Error updating group!', error)
+        return callback()
+      }
+
+      // Wait to make sure bridge updates 
+      setTimeout(function () {
+        // TODO use lights filter here to only affect non-modified lights!
+        api.activateScene(scenes.on, group_id, function (error, result) {
+          if (error) {
+            console.log('Error turning on!', error)
+          }
+
+          callback()
+        })
+      }, 1500)
+    })
   })
 }
 
@@ -124,7 +228,9 @@ module.exports = {
                     next()
                   }
                 }, function (error) {
-                  setup_scenes(callback)
+                  setup_groups(function () {
+                    setup_scenes(callback)
+                  })
                 })
               })
             }
@@ -135,93 +241,10 @@ module.exports = {
     })
   },
 
-  play: function (callback) {
-    // TODO Grab states from current and remove lights from scene to turn on just in case lights change in between!
-    // TODO grab states and modify for slow fadein
-    api.createScene(config.lights, 'PlexTrigger-Off', function (error, scene) {
-      scenes.on = scene.id
-
-      api.activateScene(scenes.off, function (error, result) {
-        if (error) {
-          console.log('Error turning off!', error)
-        }
-
-        callback()
-      })
-    })
-  }, 
+  play: play, 
 
   // TODO dim 50% here instead?
   pause: stop,
 
   stop: stop
-}
-
-// Create temporary scene
-// Set lights to it
-// Delete scene?
-var turnOffLights = function () {
-
-  /*api.getFullState(function (error, config) {
-    if (error) {
-      throw error
-      return console.log('ERROR GETTING FULL STATE!')
-    }
-
-    Object.keys(config.lights).forEach(function (light) {
-      light = light + ''
-      if (lights.indexOf(light) > -1 && config.lights[light].state.on) {
-        lightStates[light] = JSON.parse(JSON.stringify(config.lights[light].state))
-      }
-    })
-
-    if (!Object.keys(lightStates).length) {
-      return
-    }
-
-    // TODO just create group on startup maybe?
-    // Use temp Scene instead?
-    api.createGroup('Plex Off', Object.keys(lightStates), function (error, group) {
-      api.setGroupLightState(group.id, hue.lightState.create().off(), function (error, result) {
-        api.deleteGroup(group.id, function (error, group) {
-          console.log('Deleted group!')
-        })
-      })
-    })
-  })*/
-
-}
-
-var turnOnLights = function () {
-/*  var lights_to_turn_on = []
-
-  api.getFullState(function (error, config) {
-    if (error) {
-      throw error
-      return console.log('ERROR GETTING FULL STATE!')
-    }
-
-    Object.keys(config.lights).forEach(function (light) {
-      light = light + ''
-
-      if (!config.lights[light].state.on && lightStates[light] && lightStates[light].on) {
-        lights_to_turn_on.push(light)
-      }
-    })
-
-    console.log(lights_to_turn_on)
-    console.log(lights_to_turn_on.length)
-
-    // TODO "You can send commands to the lights too fast. If you stay roughly around 10 commands per second to the /lights resource as maximum you should be fine. For /groups commands you should keep to a maximum of 1 per second."
-    // Compare each, create scene/smaller groups?
-    async.eachSeries(lights_to_turn_on, function (light, next) {
-      // See if we can avoid the flicker here
-      // TODO remove .on?
-      api.setLightState(light, hue.lightState.create(lightStates[light]).on(), function (error, result) {
-        setTimeout(next, 100)
-      })
-    }, function (error) {
-      console.log('Turned on!')
-    })
-  })*/
 }
