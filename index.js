@@ -70,6 +70,7 @@ var query = function () {
     if (!result._children.length && state !== 'stop') {
       console.log('No sessions!')
       stopped_due_to_offset = false
+      setTimeout(query, config.interval)
       return trigger_state('stop')
     }
 
@@ -77,6 +78,7 @@ var query = function () {
       if (!client._children.length && state !== 'stop') {
         console.log('No players!')
         stopped_due_to_offset = false
+        setTimeout(query, config.interval)
         return trigger_state('stop')
       }
 
