@@ -156,6 +156,10 @@ var stop = function (callback) {
     console.log(lights_to_turn_on)
     console.log(lights_to_turn_on.length)
 
+    if (!lights_to_turn_on.length) {
+      return callback()
+    }
+
     // TODO create and then re-use
     api.updateGroup(group_id, lights_to_turn_on, function (error, result) {
       if (error) {
