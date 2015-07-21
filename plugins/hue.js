@@ -95,6 +95,7 @@ var play = function (callback) {
 
     Object.keys(light_config.lights).forEach(function (light) {
       light = light + ''
+      
       if (config.lights.indexOf(light) > -1) {
         states[light] = JSON.parse(JSON.stringify(light_config.lights[light].state))
       }
@@ -116,7 +117,7 @@ var play = function (callback) {
 }
 
 // TODO Properly make sure to not trigger this if we haven't triggered play first to get a scenes.on!
-// TODO Clean up groups, or just use one?
+// TODO Have a timeout before triggering this to make sure that we do get that all lights are on/off since it takes time for the bridge to update
 var stop = function (callback) {
   if (!scenes.on) {
     console.log('No on scene!')
@@ -145,11 +146,12 @@ var stop = function (callback) {
           console.log('Name', light_config.lights[light].name)
           console.log('State', states[light])
         }
-      }
-      // TODO make sure this works correctly
-      // TODO Check if color has changed etc?
-      if (config.lights.indexOf(light) > -1 && !light_config.lights[light].state.on && states[light] && states[light].on) {
-        lights_to_turn_on.push(light)
+      
+        // TODO make sure this works correctly
+        // TODO Check if color has changed etc?
+        if (!light_config.lights[light].state.on && states[light] && states[light].on) {
+          lights_to_turn_on.push(light)
+        }
       }
     })
 

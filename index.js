@@ -96,6 +96,11 @@ var query = function () {
         }
       })
 
+      if (!state_to_trigger) {
+        console.log('No players!')
+        return trigger_state('stop')
+      }
+
       // TODO This might be redundant?
       /*if (parseInt(client.viewOffset)/parseInt(client.duration) > 0.99 && (state === 'play' || state === 'pause') && (state_to_trigger === 'play' || state_to_trigger === 'pause')) {
         console.log('Did finish watching!')

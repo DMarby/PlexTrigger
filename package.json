@@ -11,6 +11,7 @@
   "dependencies": {
     "async": "^0.9.0",
     "node-hue-api": "^1.0.5",
-    "plex-api": "^2.1.0"
+    "plex-api": "^2.1.0",
+    "unirest": "^0.4.2"
   }
 }
